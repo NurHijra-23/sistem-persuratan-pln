@@ -1,0 +1,9 @@
+
+node_modules
+npm-debug.log*
+.env
+.env.*
+data/
+*.bak
+test-sppd.xlsx
+test-sppd-dua.xlsx

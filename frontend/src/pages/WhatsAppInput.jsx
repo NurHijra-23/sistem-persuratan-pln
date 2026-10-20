@@ -24,7 +24,7 @@ import {
 import { parseWhatsAppMessages } from "../utils/whatsappParser";
 import { useFeedback } from "../components/Feedback";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 function formatDate(value) {
   if (!value) return "";

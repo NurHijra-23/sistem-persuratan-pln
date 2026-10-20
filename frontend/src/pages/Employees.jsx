@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Users, Search, Pencil, Trash2, Save, X, Loader2 } from "lucide-react";
 import { useFeedback } from "../components/Feedback";
 
-const API_URL = "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
