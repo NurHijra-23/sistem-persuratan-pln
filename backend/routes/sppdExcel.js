@@ -1,8 +1,8 @@
-
 const express = require("express");
 const ExcelJS = require("exceljs");
 const path = require("path");
 const fs = require("fs");
+const supabase = require("../supabase");
 
 const router = express.Router();
 
@@ -34,8 +34,6 @@ const SHEET_ALIASES = {
   "operator os": "Operator OS",
 };
 
-const EMPLOYEES_FILE = path.join(__dirname, "..", "data", "employees.json");
-
 function normalizeSheetKey(value) {
   return String(value || "")
     .toLocaleLowerCase("id-ID")
@@ -43,22 +41,36 @@ function normalizeSheetKey(value) {
     .trim();
 }
 
+// Ambil personel aktif yang punya sheet_name dari Supabase (tabel employees).
+// Dipanggil sekali per pembuatan Excel, lalu hasilnya dipakai oleh fungsi pencarian di bawah.
+async function loadSheetEmployees() {
+  const { data, error } = await supabase
+    .from("employees")
+    .select("name, nickname, aliases, sheet_name, active")
+    .not("sheet_name", "is", null)
+    .or("active.is.null,active.eq.true");
+
+  if (error) {
+    throw new Error(`Gagal membaca data personel dari Supabase: ${error.message}`);
+  }
+
+  return (data || []).map((row) => ({
+    name: row.name,
+    nickname: row.nickname,
+    aliases: Array.isArray(row.aliases) ? row.aliases : [],
+    sheetName: row.sheet_name,
+  }));
+}
+
 // Cadangan: cari sheet dari data personel (field sheetName) agar personel yang namanya
 // diubah lewat fitur Edit Personel tetap terhubung ke sheet yang benar.
-function findSheetByEmployeeRecord(employeeName) {
+// `employees` berasal dari loadSheetEmployees(); tanpa daftar itu, hanya SHEET_ALIASES yang berlaku.
+function findSheetByEmployeeRecord(employeeName, employees = []) {
   const key = normalizeSheetKey(employeeName);
   if (!key) return undefined;
 
-  let employees = [];
-  try {
-    employees = JSON.parse(fs.readFileSync(EMPLOYEES_FILE, "utf8"));
-  } catch {
-    return undefined;
-  }
-
   const found = employees.find(
     (employee) =>
-      employee.active !== false &&
       employee.sheetName &&
       [employee.name, employee.nickname, ...(employee.aliases || [])].some(
         (value) => normalizeSheetKey(value) === key
@@ -69,8 +81,11 @@ function findSheetByEmployeeRecord(employeeName) {
 }
 
 // Nama sheet untuk satu nama karyawan (tabel bawaan dahulu, lalu data personel).
-function resolveSheetName(employeeName) {
-  return SHEET_ALIASES[normalizeSheetKey(employeeName)] || findSheetByEmployeeRecord(employeeName);
+function resolveSheetName(employeeName, employees = []) {
+  return (
+    SHEET_ALIASES[normalizeSheetKey(employeeName)] ||
+    findSheetByEmployeeRecord(employeeName, employees)
+  );
 }
 
 // Baris judul masing-masing blok pada template.
@@ -582,6 +597,90 @@ function ensureBlockCapacity(sheet, needed) {
   }
 }
 
+function safeSheetName(workbook, rawName) {
+  const base =
+    String(rawName || "Personel")
+      .replace(/[\\/?*[\]:]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 31) || "Personel";
+
+  let name = base;
+  let n = 2;
+  while (workbook.getWorksheet(name)) {
+    const suffix = ` ${n++}`;
+    name = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  return name;
+}
+
+// Menyalin satu sheet template (nilai, rumus, style, merge, lebar kolom, logo) ke sheet baru.
+function createSheetFromTemplate(workbook, newName) {
+  const source =
+    workbook.getWorksheet("Adlim") ||
+    workbook.worksheets.find((ws) => findBlockStarts(ws).length > 0);
+
+  if (!source) {
+    throw new Error("Template tidak memiliki sheet formulir yang bisa disalin.");
+  }
+
+  const copy = workbook.addWorksheet(safeSheetName(workbook, newName));
+
+  copy.properties = structuredClone(source.properties);
+  copy.pageSetup = structuredClone(source.pageSetup);
+  copy.views = structuredClone(source.views);
+
+  for (let c = 1; c <= source.columnCount; c++) {
+    const sc = source.getColumn(c);
+    const tc = copy.getColumn(c);
+    tc.width = sc.width;
+    tc.hidden = sc.hidden;
+  }
+
+  // 1. Tinggi baris, nilai, rumus.
+  for (let r = 1; r <= source.rowCount; r++) {
+    const sRow = source.getRow(r);
+    const tRow = copy.getRow(r);
+    tRow.height = sRow.height;
+    tRow.hidden = sRow.hidden;
+
+    sRow.eachCell({ includeEmpty: true }, (sCell, col) => {
+      if (sCell.type === ExcelJS.ValueType.Merge) return;
+      const tCell = tRow.getCell(col);
+
+      if (sCell.type === ExcelJS.ValueType.Formula) {
+        tCell.value = sCell.formula ? { formula: sCell.formula } : null;
+        return;
+      }
+
+      const v = sCell.value;
+      tCell.value = v && typeof v === "object" ? structuredClone(v) : v;
+    });
+  }
+
+  // 2. Merge, lalu 3. style (style terakhir agar border sel gabungan utuh).
+  for (const range of source.model.merges || []) {
+    copy.mergeCells(range);
+  }
+
+  for (let r = 1; r <= source.rowCount; r++) {
+    source.getRow(r).eachCell({ includeEmpty: true }, (sCell, col) => {
+      copy.getRow(r).getCell(col).style = structuredClone(sCell.style);
+    });
+  }
+
+  // 4. Logo/gambar.
+  for (const image of source.getImages()) {
+    const range = { tl: shiftImagePosition(image.range.tl, 0) };
+    if (image.range.br) range.br = shiftImagePosition(image.range.br, 0);
+    if (image.range.ext) range.ext = { ...image.range.ext };
+    if (image.range.editAs) range.editAs = image.range.editAs;
+    copy.addImage(image.imageId, range);
+  }
+
+  return copy;
+}
+
 async function generateWorkbook(items) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error("Tidak ada perjalanan untuk dibuatkan Excel.");
@@ -596,6 +695,9 @@ async function generateWorkbook(items) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(TEMPLATE_PATH);
 
+  // Data personel (sheet_name) dibaca sekali dari Supabase untuk seluruh proses ini.
+  const sheetEmployees = await loadSheetEmployees();
+
   // Kelompokkan perjalanan berdasarkan sheet template (nama berbeda yang menunjuk
   // sheet yang sama, mis. "Adlim" dan "Muh. Adlim Najiib Amnur", masuk satu kelompok
   // agar tidak saling menimpa blok). Bila sheet belum dipetakan, pakai nama karyawan.
@@ -603,7 +705,7 @@ async function generateWorkbook(items) {
 
   for (const item of items) {
     const key =
-      resolveSheetName(item.employeeName) ||
+      resolveSheetName(item.employeeName, sheetEmployees) ||
       String(item.employeeName).trim().toLocaleLowerCase("id-ID");
 
     if (!groups.has(key)) {
@@ -616,30 +718,30 @@ async function generateWorkbook(items) {
     groups.get(key).items.push(item);
   }
 
-  // Pemetaan nama karyawan ke sheet template (lihat SHEET_ALIASES di atas).
-  const aliases = SHEET_ALIASES;
+    const usedSheets = new Set();
 
-  const usedSheets = new Set();
+  // Pass 1: tentukan/buat sheet untuk tiap kelompok SEBELUM ada sheet yang diisi,
+  // supaya salinan template selalu berasal dari sheet yang masih bersih.
+  const groupSheets = new Map();
 
   for (const group of groups.values()) {
-    const key = group.employeeName
-      .toLocaleLowerCase("id-ID")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const sheetName = aliases[key] || findSheetByEmployeeRecord(group.employeeName);
-
-    if (!sheetName) {
-      throw new Error(
-        `Sheet template untuk karyawan "${group.employeeName}" belum dipetakan.`
-      );
-    }
-
-    const sheet = workbook.getWorksheet(sheetName);
+    let sheetName = resolveSheetName(group.employeeName, sheetEmployees);
+    let sheet = sheetName ? workbook.getWorksheet(sheetName) : undefined;
 
     if (!sheet) {
-      throw new Error(`Sheet "${sheetName}" tidak ditemukan.`);
+      sheet = createSheetFromTemplate(workbook, group.employeeName);
     }
+
+    groupSheets.set(group, sheet);
+  }
+
+  // Pass 2: isi.
+  for (const group of groups.values()) {
+    const sheet = groupSheets.get(group);
+    const sheetName = sheet.name;
+
+    // Tambah blok formulir bila perjalanan melebihi blok bawaan template.
+    ensureBlockCapacity(sheet, group.items.length);
 
     // Tambah blok formulir bila perjalanan melebihi blok bawaan template.
     ensureBlockCapacity(sheet, group.items.length);

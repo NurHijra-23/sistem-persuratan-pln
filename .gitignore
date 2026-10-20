@@ -27,3 +27,6 @@ backend/data/
 # Local test files
 backend/test-sppd.xlsx
 backend/test-sppd-dua.xlsx
+
+# Temporary backup files
+*.backup

@@ -1,37 +1,45 @@
-// Draft SPPD (Simpan Draft).
-// File ini berdiri sendiri: hanya membaca/menulis data/drafts.json.
-// Tidak menyentuh trips.json, employees.json, template Word/Excel, maupun route lain.
+// Draft SPPD (Simpan Draft) - versi Supabase.
+// Data disimpan di tabel `sppd_drafts` (id, data JSONB, created_at, updated_at).
+// File ini TIDAK lagi membaca/menulis data/drafts.json (file itu tetap utuh sebagai cadangan).
+// Tidak menyentuh trips, employees, template Word/Excel, maupun route lain.
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
+const supabase = require("../supabase");
 
 const router = express.Router();
+const TABLE = "sppd_drafts";
 
-const dataDir = path.join(__dirname, "..", "data");
-const draftsFile = path.join(dataDir, "drafts.json");
-
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+// Express 4 tidak menangkap error dari fungsi async, jadi dibungkus agar server tidak mati.
+function handle(fn) {
+  return async (req, res) => {
+    try {
+      await fn(req, res);
+    } catch (err) {
+      console.error("[drafts]", err);
+      res.status(500).json({ message: "Terjadi kesalahan pada server saat memproses draft." });
+    }
+  };
 }
 
-if (!fs.existsSync(draftsFile)) {
-  fs.writeFileSync(draftsFile, "[]", "utf8");
+// Baris database -> objek draft yang sama seperti dulu di drafts.json.
+function rowToDraft(row) {
+  const data = row.data && typeof row.data === "object" ? row.data : {};
+
+  return {
+    ...data,
+    id: row.id,
+    createdAt: data.createdAt || row.created_at,
+    updatedAt: data.updatedAt || row.updated_at,
+  };
 }
 
-function readDrafts() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(draftsFile, "utf8"));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-// Tulis ke file sementara lalu ganti, agar drafts.json tidak rusak bila proses terhenti.
-function saveDrafts(drafts) {
-  const tempFile = `${draftsFile}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(drafts, null, 2), "utf8");
-  fs.renameSync(tempFile, draftsFile);
+// Objek draft -> baris database.
+function draftToRow(draft) {
+  return {
+    id: draft.id,
+    data: draft,
+    created_at: draft.createdAt,
+    updated_at: draft.updatedAt,
+  };
 }
 
 function createDraftId() {
@@ -137,91 +145,127 @@ function computeStatus(results) {
 }
 
 // Daftar draft (ringkasan), terbaru di atas.
-router.get("/", (req, res) => {
-  const drafts = readDrafts()
-    .map(summarize)
-    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+router.get(
+  "/",
+  handle(async (req, res) => {
+    const { data, error } = await supabase.from(TABLE).select("*");
+    if (error) throw error;
 
-  res.json(drafts);
-});
+    const drafts = data
+      .map(rowToDraft)
+      .map(summarize)
+      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+
+    res.json(drafts);
+  })
+);
 
 // Satu draft lengkap.
-router.get("/:id", (req, res) => {
-  const draft = readDrafts().find((item) => item.id === req.params.id);
+router.get(
+  "/:id",
+  handle(async (req, res) => {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select("*")
+      .eq("id", req.params.id)
+      .maybeSingle();
+    if (error) throw error;
 
-  if (!draft) {
-    return res.status(404).json({ message: "Draft tidak ditemukan." });
-  }
+    if (!data) {
+      return res.status(404).json({ message: "Draft tidak ditemukan." });
+    }
 
-  res.json(draft);
-});
+    res.json(rowToDraft(data));
+  })
+);
 
 // Buat draft baru.
-router.post("/", (req, res) => {
-  const { value, error } = readBody(req.body);
+router.post(
+  "/",
+  handle(async (req, res) => {
+    const { value, error: bodyError } = readBody(req.body);
 
-  if (error) return res.status(400).json({ message: error });
+    if (bodyError) return res.status(400).json({ message: bodyError });
 
-  const now = new Date().toISOString();
-  const draft = {
-    id: createDraftId(),
-    ...value,
-    name: value.name || buildDefaultName(value.results, now),
-    status: computeStatus(value.results),
-    createdAt: now,
-    updatedAt: now,
-  };
+    const now = new Date().toISOString();
+    const draft = {
+      id: createDraftId(),
+      ...value,
+      name: value.name || buildDefaultName(value.results, now),
+      status: computeStatus(value.results),
+      createdAt: now,
+      updatedAt: now,
+    };
 
-  const drafts = readDrafts();
-  drafts.push(draft);
-  saveDrafts(drafts);
+    const { error } = await supabase.from(TABLE).insert(draftToRow(draft));
+    if (error) throw error;
 
-  res.status(201).json({ message: "Draft berhasil disimpan.", draft });
-});
+    res.status(201).json({ message: "Draft berhasil disimpan.", draft });
+  })
+);
 
 // Perbarui draft yang sudah ada (ID tetap sama).
-router.put("/:id", (req, res) => {
-  const drafts = readDrafts();
-  const index = drafts.findIndex((item) => item.id === req.params.id);
+router.put(
+  "/:id",
+  handle(async (req, res) => {
+    const { data: existingRow, error: findError } = await supabase
+      .from(TABLE)
+      .select("*")
+      .eq("id", req.params.id)
+      .maybeSingle();
+    if (findError) throw findError;
 
-  if (index === -1) {
-    return res.status(404).json({ message: "Draft tidak ditemukan." });
-  }
+    if (!existingRow) {
+      return res.status(404).json({ message: "Draft tidak ditemukan." });
+    }
 
-  const { value, error } = readBody(req.body);
+    const { value, error: bodyError } = readBody(req.body);
 
-  if (error) return res.status(400).json({ message: error });
+    if (bodyError) return res.status(400).json({ message: bodyError });
 
-  const now = new Date().toISOString();
-  const draft = {
-    ...drafts[index],
-    ...value,
-    id: drafts[index].id,
-    name: value.name || drafts[index].name || buildDefaultName(value.results, now),
-    status: computeStatus(value.results),
-    createdAt: drafts[index].createdAt,
-    updatedAt: now,
-  };
+    const existing = rowToDraft(existingRow);
+    const now = new Date().toISOString();
+    const draft = {
+      ...existing,
+      ...value,
+      id: existing.id,
+      name: value.name || existing.name || buildDefaultName(value.results, now),
+      status: computeStatus(value.results),
+      createdAt: existing.createdAt,
+      updatedAt: now,
+    };
 
-  drafts[index] = draft;
-  saveDrafts(drafts);
+    const { error } = await supabase
+      .from(TABLE)
+      .update({ data: draft, updated_at: now })
+      .eq("id", existing.id);
+    if (error) throw error;
 
-  res.json({ message: "Draft berhasil diperbarui.", draft });
-});
+    res.json({ message: "Draft berhasil diperbarui.", draft });
+  })
+);
 
 // Hapus draft. Hanya baris draft yang dihapus, bukan trips/dokumen lain.
-router.delete("/:id", (req, res) => {
-  const drafts = readDrafts();
-  const index = drafts.findIndex((item) => item.id === req.params.id);
+router.delete(
+  "/:id",
+  handle(async (req, res) => {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .delete()
+      .eq("id", req.params.id)
+      .select("*");
+    if (error) throw error;
 
-  if (index === -1) {
-    return res.status(404).json({ message: "Draft tidak ditemukan." });
-  }
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: "Draft tidak ditemukan." });
+    }
 
-  const [removed] = drafts.splice(index, 1);
-  saveDrafts(drafts);
-
-  res.json({ success: true, message: "Draft berhasil dihapus.", data: summarize(removed) });
-});
+    res.json({
+      success: true,
+      message: "Draft berhasil dihapus.",
+      data: summarize(rowToDraft(data[0])),
+    });
+  })
+);
 
 module.exports = router;
