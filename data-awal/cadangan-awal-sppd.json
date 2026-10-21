@@ -1,0 +1,202 @@
+{
+  "app": "sppd-ultg-parepare",
+  "version": 1,
+  "exportedAt": "2026-10-21T02:07:43.634Z",
+  "employees": [
+    {
+      "id": "AKRAM001",
+      "name": "AKRAM ASSIDIK",
+      "nickname": "",
+      "aliases": [
+        "Akram",
+        "akram",
+        "akram assidik",
+        "AKRAM",
+        "AKRAM ASSIDIK"
+      ],
+      "position": "Tenaga Pemeliharaan ULTG Parepare",
+      "createdAt": "2026-10-18T00:00:00.000Z",
+      "sheetName": "Akram"
+    },
+    {
+      "id": "MUHADLIM001",
+      "name": "MUH. ADLIM NAJIIB AMNUR",
+      "nickname": "",
+      "aliases": [
+        "Adlim",
+        "Muh Adlim",
+        "Muh. Adlim",
+        "adlim",
+        "muh. adlim najiib amnur",
+        "MUH ADLIM",
+        "ADLIM"
+      ],
+      "position": "Tenaga Pemeliharaan ULTG Parepare",
+      "createdAt": "2026-10-18T00:00:00.000Z",
+      "sheetName": "Adlim"
+    },
+    {
+      "id": "ANUGRAH001",
+      "name": "ANUGRAH",
+      "nickname": "",
+      "aliases": [],
+      "position": "Tenaga Pemeliharaan ULTG Parepare",
+      "createdAt": "2026-10-18T00:00:00.000Z",
+      "sheetName": "Anugrah"
+    },
+    {
+      "id": "MUHARDI001",
+      "name": "MUH. ARDI",
+      "nickname": "",
+      "aliases": [
+        "Ardi",
+        "Muh Ardi",
+        "Muh. Ardi"
+      ],
+      "position": "Tenaga Pemeliharaan ULTG Parepare",
+      "createdAt": "2026-10-18T00:00:00.000Z",
+      "sheetName": "Muh Ardi"
+    },
+    {
+      "id": "1792497168041",
+      "name": "agim",
+      "nickname": "",
+      "aliases": [],
+      "position": "Tenaga Pemeliharaan ULTG Parepare",
+      "createdAt": "2026-10-20T11:52:48.041Z"
+    }
+  ],
+  "trips": [],
+  "drafts": [
+    {
+      "id": "draft-1792459698269-k59p26",
+      "name": "Draft MUH ADLIM - 20 Okt 2026",
+      "message": "Form SPPD:\nPersonil :\n1. Akram\n- Destinasi SPPD : Barru - pangkep\n- Maksud SPPD : final cek setelah pemasangan MRG Dan Pengambilan benda asing di tower \n- Estimasi : 3 hari\n- Tanggal  : 01 - 03 September 2026\n-  ⁠Transportasi : Kendaraan dinas PP\n\nForm SPPD:\nPersonil :\n1. Akram\n- Destinasi SPPD : Parepare - Polmas\n- Maksud SPPD : CUI dan Pelepasan benda Asing rute Parepare Polmas\n- Estimasi : 3 hari\n- Tanggal  : 10 -12 September 2026\n-  ⁠Transportasi : kendaraan dinas PP\n\nForm SPPD:\nPersonil :\n1. Akram\n- Destinasi SPPD : Barru pangkep\n- Maksud SPPD : Thermovisi di tower rute barru pangkep \n- Estimasi : 1 hari\n- Tanggal  : 13 September 2026\n-  ⁠Transportasi : Kendaraan dinas PP\n\nForm SPPD:\nPersonil :\n1. Akram\n- Destinasi SPPD : parepare - pinrang\n- Maksud SPPD : Thermovisi dan Pengukuran Medan Magnet di tower rute tuppu bakaru\n- Estimasi : 2 hari\n- Tanggal  : 17-18 September 2026\n-  ⁠Transportasi : Kendaraan dinas PP\n\n\nForm SPPD:\nPersonil :\n1. Akram\n- Destinasi SPPD : parepare - pinrang\n- Maksud SPPD : sosialisasi bahaya listrik di SDN 139 Duampanua\n- Estimasi : 1 haru\n- Tanggal  : 28 September 2026\n-  ⁠Transportasi : Kendaraan dinas PP",
+      "letterDate": "2026-10-08",
+      "recipient": "Manager PLN Tarakan Regional Sulawesi 2",
+      "managerName": "SAMSU ALAM",
+      "results": [
+        {
+          "employeeId": "AKRAM001",
+          "employeeName": "AkRAM ASSIDIK",
+          "purpose": "final cek setelah pemasangan MRG Dan Pengambilan benda asing di tower",
+          "destination": "Barru - pangkep",
+          "transport": "",
+          "startDate": "2026-09-01",
+          "endDate": "2026-09-03",
+          "durationDays": 3,
+          "status": "unmatched",
+          "parseWarning": "",
+          "key": "1792460093036-0"
+        },
+        {
+          "employeeId": "",
+          "employeeName": "AKRAM",
+          "purpose": "CUI dan Pelepasan benda Asing rute Parepare Polmas",
+          "destination": "Parepare - Polmas",
+          "transport": "",
+          "startDate": "2026-09-10",
+          "endDate": "2026-09-12",
+          "durationDays": 3,
+          "status": "unmatched",
+          "parseWarning": "",
+          "key": "1792460093036-1"
+        },
+        {
+          "employeeId": "",
+          "employeeName": "AKRAM",
+          "purpose": "Thermovisi di tower rute barru pangkep",
+          "destination": "Barru pangkep",
+          "transport": "",
+          "startDate": "2026-09-13",
+          "endDate": "2026-09-13",
+          "durationDays": 1,
+          "status": "unmatched",
+          "parseWarning": "",
+          "key": "1792460093036-2"
+        },
+        {
+          "employeeId": "",
+          "employeeName": "AKRAM",
+          "purpose": "Thermovisi dan Pengukuran Medan Magnet di tower rute tuppu bakaru",
+          "destination": "parepare - pinrang",
+          "transport": "",
+          "startDate": "2026-09-17",
+          "endDate": "2026-09-18",
+          "durationDays": 2,
+          "status": "unmatched",
+          "parseWarning": "",
+          "key": "1792460093036-3"
+        },
+        {
+          "employeeId": "",
+          "employeeName": "AKRAM",
+          "purpose": "sosialisasi bahaya listrik di SDN 139 Duampanua",
+          "destination": "parepare - pinrang",
+          "transport": "",
+          "startDate": "2026-09-28",
+          "endDate": "2026-09-28",
+          "durationDays": 1,
+          "status": "unmatched",
+          "parseWarning": "",
+          "key": "1792460093036-4"
+        }
+      ],
+      "status": "Siap diproses",
+      "createdAt": "2026-10-20T01:28:18.269Z",
+      "updatedAt": "2026-10-20T01:35:11.183Z"
+    },
+    {
+      "id": "draft-1792460298752-inomer",
+      "name": "Draft ANUGRAH - 20 Okt 2026",
+      "message": "SPPD\nForm SPPD:\nPersonil :\n1. Anugrah\n\n- Destinasi SPPD : balusu Pangkep \n\n- Maksud SPPD : pengambilan benda asing TL Balusu Pangkep dan sosialisasi kekantor kelurahan \n- Estimasi : 1 hari\n- Tanggal  : 3 September - 3 September 2026\n-  ⁠Transportasi : Kendaraan dinas PP\n\nForm SPPD:\nPersonil :\n1. Anugrah\n- Destinasi SPPD : Parepare - Polmas\n- Maksud SPPD : CUI dan Pelepasan benda Asing rute Parepare Polmas\n- Estimasi : 2 hari\n- Tanggal  : 10 -11 September 2026\n-  ⁠Transportasi : kendaraan dinas PP\n\nForm SPPD:\nPersonil :\n1. Anugrah\n- Destinasi SPPD : Balusu Pangkep \n- Maksud SPPD : Scanning row mengunakan drone lidar rute Balusu Pangkep\n- Estimasi : 4 hari\n- Tanggal  : 28 -02 September 2026\n-  ⁠Transportasi : kendaraan dinas PP",
+      "letterDate": "2026-10-08",
+      "recipient": "Manager PLN Tarakan Regional Sulawesi 2",
+      "managerName": "SAMSU ALAM",
+      "results": [
+        {
+          "employeeId": "ANUGRAH001",
+          "employeeName": "ANUGRAH",
+          "purpose": "pengambilan benda asing TL Balusu Pangkep dan sosialisasi kekantor kelurahan",
+          "destination": "balusu Pangkep",
+          "transport": "",
+          "startDate": "2026-09-03",
+          "endDate": "2026-09-03",
+          "durationDays": 1,
+          "status": "matched",
+          "parseWarning": "",
+          "key": "1792461063748-0"
+        },
+        {
+          "employeeId": "ANUGRAH001",
+          "employeeName": "ANUGRAH",
+          "purpose": "CUI dan Pelepasan benda Asing rute Parepare Polmas",
+          "destination": "Parepare - Polmas",
+          "transport": "",
+          "startDate": "2026-09-10",
+          "endDate": "2026-09-11",
+          "durationDays": 2,
+          "status": "matched",
+          "parseWarning": "",
+          "key": "1792461063748-1"
+        },
+        {
+          "employeeId": "ANUGRAH001",
+          "employeeName": "ANUGRAH",
+          "purpose": "Scanning row mengunakan drone lidar rute Balusu Pangkep",
+          "destination": "Balusu Pangkep",
+          "transport": "",
+          "startDate": "2026-09-02",
+          "endDate": "2026-09-02",
+          "durationDays": 4,
+          "status": "matched",
+          "parseWarning": "",
+          "key": "1792461063748-2"
+        }
+      ],
+      "status": "Siap diproses",
+      "createdAt": "2026-10-20T01:38:18.752Z",
+      "updatedAt": "2026-10-20T01:55:00.578Z"
+    }
+  ]
+}

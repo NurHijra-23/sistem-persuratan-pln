@@ -1,0 +1,30 @@
+{
+  "name": "sppd-ultg-parepare",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sistem Persuratan SPPD TAD ULTG Parepare - aplikasi frontend-only (tanpa backend)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test:dokumen": "node scripts/uji-dokumen.mjs"
+  },
+  "dependencies": {
+    "docx-preview": "^0.3.7",
+    "docxtemplater": "^3.71.1",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^1.59.0",
+    "pizzip": "^3.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "vite": "^8.3.0"
+  }
+}

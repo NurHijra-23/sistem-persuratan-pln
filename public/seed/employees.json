@@ -1,0 +1,64 @@
+[
+  {
+    "id": "AKRAM001",
+    "name": "AKRAM ASSIDIK",
+    "nickname": "",
+    "aliases": [
+      "Akram",
+      "akram",
+      "akram assidik",
+      "AKRAM",
+      "AKRAM ASSIDIK"
+    ],
+    "position": "Tenaga Pemeliharaan ULTG Parepare",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "sheetName": "Akram"
+  },
+  {
+    "id": "MUHADLIM001",
+    "name": "MUH. ADLIM NAJIIB AMNUR",
+    "nickname": "",
+    "aliases": [
+      "Adlim",
+      "Muh Adlim",
+      "Muh. Adlim",
+      "adlim",
+      "muh. adlim najiib amnur",
+      "MUH ADLIM",
+      "ADLIM"
+    ],
+    "position": "Tenaga Pemeliharaan ULTG Parepare",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "sheetName": "Adlim"
+  },
+  {
+    "id": "ANUGRAH001",
+    "name": "ANUGRAH",
+    "nickname": "",
+    "aliases": [],
+    "position": "Tenaga Pemeliharaan ULTG Parepare",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "sheetName": "Anugrah"
+  },
+  {
+    "id": "MUHARDI001",
+    "name": "MUH. ARDI",
+    "nickname": "",
+    "aliases": [
+      "Ardi",
+      "Muh Ardi",
+      "Muh. Ardi"
+    ],
+    "position": "Tenaga Pemeliharaan ULTG Parepare",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "sheetName": "Muh Ardi"
+  },
+  {
+    "id": "1792497168041",
+    "name": "agim",
+    "nickname": "",
+    "aliases": [],
+    "position": "Tenaga Pemeliharaan ULTG Parepare",
+    "createdAt": "2026-10-20T11:52:48.041Z"
+  }
+]
