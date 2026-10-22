@@ -4,6 +4,7 @@ import Employees from "./pages/Employees";
 import Trips from "./pages/Trips";
 import Dashboard from "./pages/Dashboard";
 import Backup from "./pages/Backup";
+import Signatures from "./pages/Signatures";
 import AppHeader from "./components/AppHeader";
 import Footer from "./components/Footer";
 import { FeedbackProvider } from "./components/Feedback";
@@ -12,7 +13,7 @@ import { FeedbackProvider } from "./components/Feedback";
 // Ubah ke true bila ingin menampilkannya kembali.
 const SHOW_TRIPS_PAGE = false;
 
-const PAGES = ["dashboard", "input", "employees", "trips", "backup"];
+const PAGES = ["dashboard", "input", "employees", "trips", "backup", "signatures"];
 
 // Alamat halaman memakai hash (#/input, dst.) agar tombol Kembali browser berfungsi.
 // Tanpa hash, aplikasi selalu membuka Dashboard.
@@ -67,6 +68,7 @@ export default function App() {
               {activePage === "employees" && <Employees />}
 
               {activePage === "backup" && <Backup />}
+              {activePage === "signatures" && <Signatures />}
 
               {activePage === "trips" && SHOW_TRIPS_PAGE && <Trips />}
 

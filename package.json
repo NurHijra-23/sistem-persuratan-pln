@@ -16,6 +16,8 @@
     "docxtemplater": "^3.71.1",
     "exceljs": "^4.4.0",
     "lucide-react": "^1.59.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.6.205",
     "pizzip": "^3.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

@@ -7,7 +7,7 @@
 //   drafts    : keyPath "id"  -> objek draft SPPD lengkap
 
 const DB_NAME = "sppd-ultg-parepare";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2: menambah store "settings" (tanda tangan/paraf)
 
 export const STORES = ["employees", "trips", "drafts"];
 
@@ -32,6 +32,11 @@ function openDb() {
           db.createObjectStore(name, { keyPath: "id" });
         }
       }
+
+      // Pengaturan aplikasi (mis. gambar tanda tangan/paraf). Tidak termasuk STORES data utama.
+      if (!db.objectStoreNames.contains("settings")) {
+        db.createObjectStore("settings", { keyPath: "id" });
+      }
     };
 
     request.onsuccess = () => resolve(request.result);
@@ -44,7 +49,7 @@ function openDb() {
 }
 
 function memoryStore(name) {
-  if (!memory) memory = { employees: new Map(), trips: new Map(), drafts: new Map() };
+  if (!memory) memory = { employees: new Map(), trips: new Map(), drafts: new Map(), settings: new Map() };
   return memory[name];
 }
 

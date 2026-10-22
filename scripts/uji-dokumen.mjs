@@ -59,7 +59,6 @@ await save("surat-semua.docx", await post("/api/sppd/generate", { items }));
 await save("excel-satu-agim.xlsx", await post("/api/sppd-excel/generate", trips[2]));
 await save("excel-semua.xlsx", await post("/api/sppd-excel/generate-all", { items: trips }));
 await save("gabungan.docx", await post("/api/sppd-gabungan/generate", { items, trips }));
-await save("paket.zip", await post("/api/sppd-paket/zip", { items, trips }));
 await save("pratinjau-surat.docx", await post("/api/sppd/preview", items[0]));
 await save("pratinjau-excel.docx", await post("/api/sppd-preview/excel", trips[0]));
 console.log("Selesai.");

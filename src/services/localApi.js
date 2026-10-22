@@ -2,18 +2,15 @@
 // (alamat + { method, headers, body }) dan mengembalikan objek Response sungguhan, sehingga
 // halaman-halaman lama tetap memakai response.ok / response.json() / response.blob().
 // Semua proses berjalan di browser: data di IndexedDB, dokumen dibuat dari template lokal.
-import PizZip from "pizzip";
-
 import { drafts, employees, trips } from "./dataServices.js";
 import { createDocx, mergeDocxBuffers } from "./sppd/letter.js";
 import { generateWorkbook } from "./sppd/excelWorkbook.js";
-import { createCombinedDocx, createFormOnlyDocx, groupKey } from "./sppd/combined.js";
+import { createCombinedDocx, createFormOnlyDocx } from "./sppd/combined.js";
 
 export const API_URL = "/api";
 
 const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const MIME_ZIP = "application/zip";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -35,15 +32,6 @@ function errorResponse(error, fallback) {
         error.properties?.errors?.map((item) => item.properties?.explanation).filter(Boolean) || [],
     },
     error.status || 400
-  );
-}
-
-function safeFileLabel(name, fallback = "Karyawan") {
-  return (
-    String(name || fallback)
-      .normalize("NFKD")
-      .replace(/[^\w.-]+/g, "_")
-      .replace(/^_+|_+$/g, "") || fallback
   );
 }
 
@@ -96,33 +84,6 @@ async function handleDocuments(path, body) {
       }
 
       return binary(await createCombinedDocx(items, tripList), MIME_DOCX);
-    }
-
-    // ZIP berisi Word (semua surat) + Excel (semua perjalanan) dari data SPPD yang sama.
-    case "/sppd-paket/zip": {
-      const { items, trips: tripList } = body || {};
-
-      if (!Array.isArray(items) || !Array.isArray(tripList) || items.length === 0) {
-        return json({ message: "Data surat dan data perjalanan wajib dikirim." }, 400);
-      }
-
-      if (items.length !== tripList.length) {
-        return json({ message: "Jumlah data surat dan data perjalanan harus sama." }, 400);
-      }
-
-      const letters = [];
-      for (const item of items) letters.push(await createDocx(item));
-
-      const word = mergeDocxBuffers(letters);
-      const excel = await generateWorkbook(tripList);
-      const names = [...new Set(items.map((item) => groupKey(item.namaPegawai)))];
-      const label = names.length === 1 ? safeFileLabel(items[0].namaPegawai) : "Beberapa_Pegawai";
-
-      const zip = new PizZip();
-      zip.file(`SPPD_${label}_${items.length}_surat.docx`, word);
-      zip.file(`SPPD_Excel_${label}_${items.length}_perjalanan.xlsx`, excel);
-
-      return binary(zip.generate({ type: "uint8array", compression: "DEFLATE" }), MIME_ZIP);
     }
 
     default:

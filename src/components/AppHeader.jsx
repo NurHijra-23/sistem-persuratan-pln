@@ -2,6 +2,7 @@ import {
   ClipboardPaste,
   Database,
   LayoutDashboard,
+  PenLine,
   Route,
   Users,
 } from "lucide-react";
@@ -17,6 +18,7 @@ export function buildNavItems(showTrips) {
       ? [{ id: "trips", label: "Data Perjalanan", icon: Route }]
       : []),
     { id: "employees", label: "Data Personel", icon: Users },
+    { id: "signatures", label: "Tanda Tangan", icon: PenLine },
     { id: "backup", label: "Cadangan", icon: Database },
   ];
 }

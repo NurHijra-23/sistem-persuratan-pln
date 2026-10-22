@@ -16,6 +16,8 @@ export async function buildBackup() {
     employees: data.employees,
     trips: data.trips,
     drafts: data.drafts,
+    // Pengaturan tanda tangan/paraf (gambar disimpan sebagai data URL).
+    settings: await getAll("settings"),
   };
 }
 
@@ -64,6 +66,10 @@ export function parseBackup(text) {
     });
   }
 
+  result.settings = Array.isArray(raw.settings)
+    ? raw.settings.filter((item) => item && typeof item === "object" && item.id).map((item) => ({ ...item, id: String(item.id) }))
+    : [];
+
   if (STORES.every((name) => result[name].length === 0)) {
     throw new Error("Berkas cadangan tidak berisi data.");
   }
@@ -79,6 +85,8 @@ export async function restoreBackup(data, mode) {
   } else {
     for (const name of STORES) await putMany(name, data[name]);
   }
+
+  if (data.settings?.length) await putMany("settings", data.settings);
 
   return Object.fromEntries(STORES.map((name) => [name, data[name].length]));
 }

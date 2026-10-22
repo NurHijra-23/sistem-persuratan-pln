@@ -19,12 +19,14 @@ import {
   ChevronDown,
   FileSpreadsheet,
   FileText,
-  FileArchive,
   X,
 } from "lucide-react";
 import { parseWhatsAppMessages } from "../utils/whatsappParser";
 import { useFeedback } from "../components/Feedback";
 import DocxPreview from "../components/DocxPreview";
+import CombinedPreview from "../components/CombinedPreview";
+import { buildCombinedPdf } from "../services/pdf/combinedPdf";
+import { loadEmployeeSignatures, loadSignatureSettings } from "../services/signatures";
 import { saveBlob } from "../services/backup";
 import { apiFetch, API_URL } from "../services/localApi";
 
@@ -61,7 +63,8 @@ function terbilangHari(value) {
   return String(value);
 }
 
-function buildSppdPayload(item, letterDate, recipient, managerName) {
+// Parameter kedua dipertahankan agar pemanggil lama tidak berubah; nilainya tidak dipakai.
+function buildSppdPayload(item, _legacyLetterDate, recipient, managerName) {
   const start = new Date(`${item.startDate}T00:00:00`);
   const end = new Date(`${item.endDate}T00:00:00`);
 
@@ -69,7 +72,8 @@ function buildSppdPayload(item, letterDate, recipient, managerName) {
     Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
 
   return {
-    tanggalSurat: formatDate(letterDate),
+    // Tanggal surat selalu mengikuti tanggal berangkat perjalanan itu sendiri.
+    tanggalSurat: formatDate(item.startDate),
     perihal: "Permohonan",
     subPerihal: "Pemeliharaan ULTG Parepare",
     penerima: recipient.trim() || "Manager PLN Tarakan Regional Sulawesi 2",
@@ -207,14 +211,13 @@ export default function WhatsAppInput({ active = true }) {
 
   function validateItem(item) {
     if (
-      !letterDate ||
       !item.employeeName?.trim() ||
       !item.purpose?.trim() ||
       !item.destination?.trim() ||
       !item.startDate ||
       !item.endDate
     ) {
-      return "Lengkapi tanggal surat, karyawan, maksud, tujuan, dan tanggal perjalanan.";
+      return "Lengkapi karyawan, maksud, tujuan, dan tanggal perjalanan.";
     }
 
     if (item.endDate < item.startDate) {
@@ -582,11 +585,6 @@ async function handleDownloadAll() {
     return;
   }
 
-  if (!letterDate) {
-    setError("Isi tanggal surat terlebih dahulu.");
-    return;
-  }
-
   const invalidItem = results.find((item) => {
     return (
       !item.employeeName?.trim() ||
@@ -683,11 +681,6 @@ async function handleDownloadAll() {
       return;
     }
 
-    if (!letterDate) {
-      setError("Isi tanggal surat terlebih dahulu.");
-      return;
-    }
-
     if (!managerName.trim()) {
       setError("Isi nama manajer terlebih dahulu.");
       return;
@@ -768,28 +761,17 @@ async function handleDownloadAll() {
     }
   }
 
-  // ===== Unduh Word + Excel dari data SPPD yang sama =====
+  // ===== Unduh Gabungan PDF (fitur utama) =====
 
-  const pause = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+  // Perjalanan yang disertakan ke PDF (kotak centang "Sertakan di PDF" pada tiap perjalanan).
+  const selectedTrips = results.filter((item) => item.pdfSelected !== false);
 
-  async function readResponseError(response, fallback) {
-    const data = await response.json().catch(() => ({}));
-    let message = data.message || fallback;
-
-    if (data.detail?.length) {
-      message += ` ${Array.isArray(data.detail) ? data.detail.join(", ") : data.detail}`;
-    }
-
-    return message;
-  }
-
-  // Memeriksa seluruh perjalanan sebelum membuat Word + Excel; mengembalikan pesan kesalahan.
-  function validateAllForDocuments() {
+  function validateTripsForPdf(list) {
     if (results.length === 0) return "Baca pesan WhatsApp terlebih dahulu.";
-    if (!letterDate) return "Isi tanggal surat terlebih dahulu.";
+    if (list.length === 0) return "Pilih minimal satu perjalanan untuk PDF.";
     if (!managerName.trim()) return "Isi nama manajer terlebih dahulu.";
 
-    const invalidItem = results.find(
+    const invalidItem = list.find(
       (item) =>
         !item.employeeName?.trim() ||
         !item.purpose?.trim() ||
@@ -820,37 +802,10 @@ async function handleDownloadAll() {
     return names.size === 1 ? list[0].employeeName.trim().replace(/[^\w.-]+/g, "_") : "Beberapa_Pegawai";
   }
 
-  // Satu pemanggilan membuat Word dan Excel dari daftar perjalanan yang sama.
-  async function buildWordAndExcel(list) {
-    const items = list.map((item) => buildSppdPayload(item, letterDate, recipient, managerName));
-    const trips = list.map(buildExcelPayload);
-
-    const wordResponse = await apiFetch(`${API_URL}/sppd/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
-    });
-
-    if (!wordResponse.ok) {
-      throw new Error(await readResponseError(wordResponse, "Gagal membuat dokumen Word."));
-    }
-
-    const excelResponse = await apiFetch(`${API_URL}/sppd-excel/generate-all`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: trips }),
-    });
-
-    if (!excelResponse.ok) {
-      throw new Error(await readResponseError(excelResponse, "Gagal membuat file Excel."));
-    }
-
-    return {
-      items,
-      trips,
-      word: await wordResponse.blob(),
-      excel: await excelResponse.blob(),
-    };
+  function pdfFileName(list) {
+    return list.length === 1
+      ? `SPPD_${labelFor(list)}_${list[0].startDate}.pdf`
+      : `SPPD_Gabungan_${labelFor(list)}_${list.length}_perjalanan.pdf`;
   }
 
   async function runWithLoading(indexes, work) {
@@ -870,81 +825,56 @@ async function handleDownloadAll() {
     }
   }
 
-  // Unduh Word + Excel untuk semua perjalanan: dua file, dari data yang sama.
-  async function handleDownloadWordExcel() {
-    const validationError = validateAllForDocuments();
+  // Satu PDF: surat 1, formulir 1, surat 2, formulir 2, ... (hanya yang dibuat berhasil yang diunduh).
+  async function downloadPdfFor(list) {
+    const validationError = validateTripsForPdf(list);
 
     if (validationError) {
       setError(validationError);
       return;
     }
 
-    await runWithLoading(
-      results.map((_, i) => i),
-      async () => {
-        const { word, excel } = await buildWordAndExcel(results);
-        const label = labelFor(results);
+    const indexes = list.map((item) => results.indexOf(item));
 
-        saveBlob(word, `SPPD_${label}_${results.length}_surat.docx`);
-        // Jeda agar browser tidak memblokir unduhan kedua.
-        await pause(600);
-        saveBlob(excel, `SPPD_Excel_${label}_${results.length}_perjalanan.xlsx`);
+    await runWithLoading(indexes, async () => {
+      const signatures = await loadSignatureSettings();
+      const result = await buildCombinedPdf({
+        items: list.map((item) => buildSppdPayload(item, "", recipient, managerName)),
+        trips: list.map(buildExcelPayload),
+        signatures,
+        employeeImages: employeeImagesFor(list),
+      });
 
-        toast.success("Dokumen Word dan Excel SPPD berhasil dibuat.");
+      saveBlob(new Blob([result.bytes], { type: "application/pdf" }), pdfFileName(list));
+
+      if (result.warnings.length) {
+        toast.error(`PDF dibuat, tetapi: ${result.warnings.join(" ")}`);
+      } else {
+        toast.success(`PDF gabungan berhasil dibuat (${result.pageCount} halaman).`);
       }
-    );
+    });
   }
 
-  // Alternatif: satu file ZIP berisi Word + Excel (tidak bergantung pada izin unduhan ganda).
-  async function handleDownloadZip() {
-    const validationError = validateAllForDocuments();
+  const handleDownloadPdf = () => downloadPdfFor(selectedTrips);
+  const handleDownloadPdfOne = (index) => downloadPdfFor([results[index]]);
+
+  // Tinjau Gabungan: tampilan PDF yang sama dengan hasil unduhan.
+  const [combinedPreview, setCombinedPreview] = useState(null);
+
+  function openCombinedPreview(list) {
+    const validationError = validateTripsForPdf(list);
 
     if (validationError) {
       setError(validationError);
       return;
     }
 
-    await runWithLoading(
-      results.map((_, i) => i),
-      async () => {
-        const response = await apiFetch(`${API_URL}/sppd-paket/zip`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            items: results.map((item) => buildSppdPayload(item, letterDate, recipient, managerName)),
-            trips: results.map(buildExcelPayload),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(await readResponseError(response, "Gagal membuat file ZIP."));
-        }
-
-        saveBlob(await response.blob(), `SPPD_${labelFor(results)}_${results.length}_Word_Excel.zip`);
-        toast.success("File ZIP berisi Word dan Excel berhasil dibuat.");
-      }
-    );
-  }
-
-  // Word + Excel untuk satu perjalanan.
-  async function handleDownloadWordExcelOne(index) {
-    const item = results[index];
-    const validationError = validateItem(item);
-
-    if (validationError) {
-      setError(`${item.employeeName || "Perjalanan ini"}: ${validationError}`);
-      return;
-    }
-
-    await runWithLoading([index], async () => {
-      const { word, excel } = await buildWordAndExcel([item]);
-      const safeName = item.employeeName.trim().replace(/[^\w.-]+/g, "_");
-
-      saveBlob(word, `SPPD_${safeName}_${item.startDate}.docx`);
-      await pause(600);
-      saveBlob(excel, `SPPD_${safeName}_${item.startDate}.xlsx`);
-
-      toast.success("Dokumen Word dan Excel SPPD berhasil dibuat.");
+    setError("");
+    setCombinedPreview({
+      items: list.map((item) => buildSppdPayload(item, "", recipient, managerName)),
+      trips: list.map(buildExcelPayload),
+      employeeImages: employeeImagesFor(list),
+      fileName: pdfFileName(list),
     });
   }
 
@@ -958,6 +888,47 @@ async function handleDownloadAll() {
   // Muat ulang data personel setiap halaman ini dibuka kembali, lalu sinkronkan nama dan posisi
   // pada perjalanan yang sedang dikerjakan.
   const skipFirstActiveRun = useRef(true);
+
+  // Tanda tangan karyawan yang tersimpan (diambil saat halaman dibuka dan tiap kembali ke halaman ini).
+  const [empSigs, setEmpSigs] = useState({});
+
+  useEffect(() => {
+    if (!active) return;
+
+    loadEmployeeSignatures()
+      .then((doc) => setEmpSigs(doc.items || {}))
+      .catch(() => setEmpSigs({}));
+  }, [active]);
+
+  // ID karyawan pemilik tanda tangan yang dipakai pada sebuah perjalanan.
+  //  "auto" (bawaan): otomatis sesuai karyawan perjalanan itu (berdasarkan ID, lalu nama/alias/panggilan)
+  //  "none"/""      : tanpa tanda tangan;  selain itu: ID karyawan yang dipilih admin secara manual
+  function signatureOwnerFor(item) {
+    const choice = item.signatureEmployeeId;
+
+    if (choice === "none" || choice === "") return "";
+    if (choice && choice !== "auto") return choice;
+
+    if (item.employeeId && empSigs[item.employeeId]?.dataUrl) return item.employeeId;
+
+    const key = (value) => String(value || "").toLocaleLowerCase("id-ID").replace(/[^a-z0-9]/g, "");
+    const target = key(item.employeeName);
+    if (!target) return "";
+
+    const match = employees.find((person) =>
+      [person.name, person.nickname, ...(person.aliases || [])].some((name) => key(name) === target)
+    );
+
+    return match && empSigs[match.id]?.dataUrl ? match.id : "";
+  }
+
+  // Data URL tanda tangan karyawan pada tiap perjalanan (null = tanpa tanda tangan).
+  function employeeImagesFor(list) {
+    return list.map((item) => {
+      const owner = signatureOwnerFor(item);
+      return (owner && empSigs[owner]?.dataUrl) || null;
+    });
+  }
 
   useEffect(() => {
     if (skipFirstActiveRun.current) {
@@ -1419,21 +1390,13 @@ Tanggal: 2 - 4 September 2026`}
           <section className="card">
             <div className="card-title">
               <h2>Informasi Surat</h2>
-              <p>Berlaku untuk semua surat pada daftar di bawah.</p>
+              <p>
+                Penerima dan nama manajer berlaku untuk semua surat. Tanggal surat otomatis mengikuti
+                tanggal berangkat masing-masing perjalanan.
+              </p>
             </div>
 
             <div className="form-grid cols-3">
-              <div className="field">
-                <label htmlFor="wa-letter-date">Tanggal surat</label>
-                <input
-                  id="wa-letter-date"
-                  className="input"
-                  type="date"
-                  value={letterDate}
-                  onChange={(event) => setLetterDate(event.target.value)}
-                />
-              </div>
-
               <div className="field">
                 <label htmlFor="wa-recipient">Penerima surat</label>
                 <input
@@ -1515,6 +1478,16 @@ Tanggal: 2 - 4 September 2026`}
                 <article key={item.key} className="trip-card">
                   <header className="trip-card-header">
                     <span className="trip-number">{index + 1}</span>
+
+                    <label className="trip-pdf-select" title="Sertakan perjalanan ini pada Unduh Gabungan PDF">
+                      <input
+                        type="checkbox"
+                        checked={item.pdfSelected !== false}
+                        data-testid={`pdf-select-${index}`}
+                        onChange={(event) => updateResult(index, "pdfSelected", event.target.checked)}
+                      />
+                      PDF
+                    </label>
 
                     <div className="trip-heading">
                       <h3>{item.employeeName || "Karyawan belum dipilih"}</h3>
@@ -1644,6 +1617,36 @@ Tanggal: 2 - 4 September 2026`}
                     ))}
                   </div>
 
+                  <div className="trip-sign-row">
+                    <label htmlFor={`sig-emp-${index}`}>Tanda tangan karyawan di formulir</label>
+                    <select
+                      id={`sig-emp-${index}`}
+                      className="input"
+                      data-testid={`sig-select-${index}`}
+                      value={item.signatureEmployeeId === undefined ? "auto" : item.signatureEmployeeId || "none"}
+                      onChange={(event) => updateResult(index, "signatureEmployeeId", event.target.value)}
+                    >
+                      <option value="auto">
+                        {signatureOwnerFor(item)
+                          ? `Otomatis: ${employees.find((person) => person.id === signatureOwnerFor(item))?.name || "sesuai karyawan"}`
+                          : "Otomatis (karyawan ini belum punya tanda tangan)"}
+                      </option>
+                      <option value="none">Tanpa tanda tangan</option>
+                      {[...employees]
+                        .filter((person) => empSigs[person.id]?.dataUrl)
+                        .sort((a, b) => (b.id === item.employeeId) - (a.id === item.employeeId))
+                        .map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                            {person.id === item.employeeId ? " (sesuai karyawan)" : ""}
+                          </option>
+                        ))}
+                    </select>
+                    {!Object.keys(empSigs).length && (
+                      <span className="hint">Belum ada tanda tangan karyawan. Simpan di menu Tanda Tangan.</span>
+                    )}
+                  </div>
+
                   <footer className="trip-actions">
                     <div className="action-group">
                       <span className="action-group-label">Pratinjau</span>
@@ -1683,7 +1686,7 @@ Tanggal: 2 - 4 September 2026`}
                       <span className="action-group-label">Unduh</span>
                       <button
                         type="button"
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-outline btn-sm"
                         onClick={() => handleDownload(index)}
                         disabled={item.downloadLoading || item.previewLoading}
                       >
@@ -1709,8 +1712,8 @@ Tanggal: 2 - 4 September 2026`}
                       </button>
                       <button
                         type="button"
-                        className="btn btn-outline btn-sm"
-                        onClick={() => handleDownloadWordExcelOne(index)}
+                        className="btn btn-primary btn-sm"
+                        onClick={() => handleDownloadPdfOne(index)}
                         disabled={item.downloadLoading || item.previewLoading}
                       >
                         {item.downloadLoading ? (
@@ -1718,7 +1721,7 @@ Tanggal: 2 - 4 September 2026`}
                         ) : (
                           <Download size={16} />
                         )}
-                        {item.downloadLoading ? "Membuat..." : "Word + Excel"}
+                        {item.downloadLoading ? "Membuat..." : "Unduh PDF"}
                       </button>
                     </div>
                   </footer>
@@ -1788,8 +1791,9 @@ Tanggal: 2 - 4 September 2026`}
             <div className="card-title">
               <h2>Unduh Semua Dokumen</h2>
               <p>
-                Membuat dokumen untuk seluruh {results.length} perjalanan di
-                atas sekaligus.
+                Fitur utama: satu PDF berisi surat lalu formulir untuk setiap perjalanan yang
+                dicentang (kotak PDF pada tiap perjalanan). Unduhan Word dan Excel terpisah
+                tersedia sebagai pilihan tambahan.
               </p>
             </div>
 
@@ -1797,29 +1801,25 @@ Tanggal: 2 - 4 September 2026`}
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={handleDownloadWordExcel}
-                disabled={results.length === 0 || anyLoading}
+                onClick={handleDownloadPdf}
+                disabled={selectedTrips.length === 0 || anyLoading}
               >
                 {anyLoading ? (
                   <Loader2 size={18} className="spin" />
                 ) : (
                   <Download size={18} />
                 )}
-                Download Word + Excel
+                Unduh Gabungan PDF ({selectedTrips.length} perjalanan)
               </button>
 
               <button
                 type="button"
-                className="btn btn-outline"
-                onClick={handleDownloadZip}
-                disabled={results.length === 0 || anyLoading}
+                className="btn btn-secondary"
+                onClick={() => openCombinedPreview(selectedTrips)}
+                disabled={selectedTrips.length === 0 || anyLoading}
               >
-                {anyLoading ? (
-                  <Loader2 size={18} className="spin" />
-                ) : (
-                  <FileArchive size={18} />
-                )}
-                Unduh ZIP (Word + Excel)
+                <Eye size={18} />
+                Tinjau Gabungan
               </button>
 
               <button
@@ -1861,11 +1861,21 @@ Tanggal: 2 - 4 September 2026`}
                 ) : (
                   <Download size={18} />
                 )}
-                Unduh Gabungan (1 file Word: surat + formulir)
+                Gabungan Word (surat + formulir)
               </button>
             </div>
           </section>
         </>
+      )}
+
+      {combinedPreview && (
+        <CombinedPreview
+          items={combinedPreview.items}
+          trips={combinedPreview.trips}
+          employeeImages={combinedPreview.employeeImages}
+          fileName={combinedPreview.fileName}
+          onClose={() => setCombinedPreview(null)}
+        />
       )}
     </main>
   );

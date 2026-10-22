@@ -1539,3 +1539,250 @@ textarea.input {
     max-height: 480px;
   }
 }
+
+/* ===== Tinjau Gabungan (PDF) ===== */
+.combined-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 16px;
+}
+
+.combined-modal {
+  background: #f1f5f9;
+  border-radius: 12px;
+  width: min(980px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.combined-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.combined-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.combined-header p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.combined-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.combined-pages {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.combined-page {
+  width: min(100%, 794px);
+  height: auto;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.25);
+}
+
+.combined-page-label {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: #475569;
+  align-self: flex-start;
+}
+
+/* ===== Tanda tangan & paraf ===== */
+.sig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.sig-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  background: #fff;
+}
+
+.sig-card h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.sig-card .hint {
+  margin: 0 0 10px;
+}
+
+.sig-thumb {
+  height: 90px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  background-image: linear-gradient(45deg, #f1f5f9 25%, transparent 25%), linear-gradient(-45deg, #f1f5f9 25%, transparent 25%);
+  background-size: 14px 14px;
+}
+
+.sig-thumb img {
+  max-width: 100%;
+  max-height: 84px;
+}
+
+.sig-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.sig-fields label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.75rem;
+  color: #475569;
+  gap: 3px;
+}
+
+.sig-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  margin: 8px 0;
+}
+
+.sig-saved {
+  font-size: 0.8rem;
+  color: #15803d;
+}
+
+.trip-pdf-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+/* ===== Editor posisi langsung ===== */
+.pe-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.pe-toolbar .hint {
+  flex: 1 1 320px;
+  margin: 0;
+}
+
+.pe-pages {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  overflow-x: auto;
+}
+
+.pe-page {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.25);
+  user-select: none;
+  touch-action: none;
+}
+
+.pe-page > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.pe-slot {
+  position: absolute;
+  outline: 1px solid rgba(37, 99, 235, 0.55);
+  cursor: move;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.pe-slot:focus-visible,
+.pe-slot:hover {
+  outline: 2px solid #2563eb;
+}
+
+.pe-slot > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.pe-empty {
+  border: 1.5px dashed #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  font-size: 9px;
+  color: #1d4ed8;
+  text-align: center;
+  overflow: hidden;
+}
+
+.pe-capped {
+  outline-color: #d97706;
+}
+
+.pe-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: #2563eb;
+  border: 1px solid #fff;
+  cursor: nwse-resize;
+}
+
+.trip-sign-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 4px;
+  font-size: 0.85rem;
+}
+
+.trip-sign-row select {
+  max-width: 320px;
+}
