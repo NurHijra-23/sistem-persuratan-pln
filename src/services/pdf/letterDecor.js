@@ -69,10 +69,13 @@ export async function readLetterDecorations() {
   if (cache) return cache;
 
   const zip = new PizZip(await loadTemplate(LETTER_TEMPLATE_NAME));
-  const result = { pageMarginLeftPt: 56.7, headerImages: [], lines: [] };
+  const result = { pageMarginLeftPt: 56.7, pageMarginRightPt: 56.7, headerImages: [], lines: [] };
 
   const pgMar = first(parse(zip.file("word/document.xml").asText()), NS.w, "pgMar");
-  if (pgMar) result.pageMarginLeftPt = num(pgMar.getAttributeNS(NS.w, "left"), 1134) / 20;
+  if (pgMar) {
+    result.pageMarginLeftPt = num(pgMar.getAttributeNS(NS.w, "left"), 1134) / 20;
+    result.pageMarginRightPt = num(pgMar.getAttributeNS(NS.w, "right"), 1134) / 20;
+  }
 
   for (const part of Object.keys(zip.files).filter((name) => /^word\/(header|footer)\d*\.xml$/.test(name))) {
     const doc = parse(zip.file(part).asText());

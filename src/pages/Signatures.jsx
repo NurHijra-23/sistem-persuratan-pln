@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, Eye, ImagePlus, Loader2, PenLine, Trash2, Users } from "lucide-react";
+import { CheckCircle2, Eraser, Eye, EyeOff, ImagePlus, Loader2, PenLine, RotateCcw, Trash2, Users } from "lucide-react";
 
 import { useFeedback } from "../components/Feedback";
+import BackgroundRemovalDialog from "../components/BackgroundRemovalDialog";
 import CombinedPreview from "../components/CombinedPreview";
 import PlacementEditor from "../components/PlacementEditor";
 import { apiFetch } from "../services/localApi";
@@ -49,6 +50,8 @@ export default function Signatures() {
   const [saveState, setSaveState] = useState("");
   const [busyKey, setBusyKey] = useState("");
   const [preview, setPreview] = useState(false);
+  // Dialog hapus latar: { kind: "slot" | "employee", key?, employee?, title, source: { dataUrl, fileName } }
+  const [bgTarget, setBgTarget] = useState(null);
   const loadedRef = useRef(false);
   const timerRef = useRef(null);
   const [employees, setEmployees] = useState([]);
@@ -114,10 +117,14 @@ export default function Signatures() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
+  // Mengubah lebar (angka, seret handle, tombol +/-) menandai ukuran sebagai manual: sejak itu ukuran
+  // dipakai persis dan tidak dibatasi otomatis. "Ukuran otomatis" mengembalikannya.
   function patchSlot(key, patch) {
+    const next = "widthMm" in patch && !("sizeManual" in patch) ? { ...patch, sizeManual: true } : patch;
+
     setSettings((current) => ({
       ...current,
-      slots: { ...current.slots, [key]: { ...current.slots[key], ...patch } },
+      slots: { ...current.slots, [key]: { ...current.slots[key], ...next } },
     }));
   }
 
@@ -131,8 +138,8 @@ export default function Signatures() {
 
     try {
       const image = await readSignatureFile(file);
-      patchSlot(key, { ...image, enabled: true });
-      toast.success("Gambar diunggah. Pengaturan tersimpan otomatis.");
+      const def = SIGNATURE_SLOTS.find((item) => item.key === key);
+      setBgTarget({ kind: "slot", key, title: def?.label || key, source: image });
     } catch (error) {
       toast.error(error.message || "Gambar tidak dapat dibaca.");
     } finally {
@@ -150,16 +157,39 @@ export default function Signatures() {
 
     try {
       const image = await readSignatureFile(file);
-      setEmpSigs((current) => ({
-        ...current,
-        items: { ...current.items, [employee.id]: { ...image, updatedAt: new Date().toISOString() } },
-      }));
-      toast.success(`Tanda tangan ${employee.name} diunggah.`);
+      setBgTarget({ kind: "employee", employee, title: `tanda tangan ${employee.name}`, source: image });
     } catch (error) {
       toast.error(error.message || "Gambar tidak dapat dibaca.");
     } finally {
       setBusyKey("");
     }
+  }
+
+  // Hasil dialog hapus latar (hasil, atau gambar asli) disimpan ke slot/karyawan yang dituju.
+  function applyBgResult(image, { removed }) {
+    const target = bgTarget;
+
+    setBgTarget(null);
+
+    if (!target) return;
+
+    if (target.kind === "slot") {
+      patchSlot(target.key, { dataUrl: image.dataUrl, ratio: image.ratio, fileName: image.fileName, enabled: true });
+    } else {
+      setEmpSigs((current) => ({
+        ...current,
+        items: {
+          ...current.items,
+          [target.employee.id]: { dataUrl: image.dataUrl, ratio: image.ratio, fileName: image.fileName, updatedAt: new Date().toISOString() },
+        },
+      }));
+    }
+
+    toast.success(
+      removed
+        ? "Gambar dengan latar transparan disimpan. Pengaturan tersimpan otomatis."
+        : "Gambar asli disimpan tanpa penghapusan latar. Pengaturan tersimpan otomatis."
+    );
   }
 
   async function handleEmployeeRemove(employee) {
@@ -208,7 +238,7 @@ export default function Signatures() {
       <header className="page-header">
         <h1>Tanda Tangan &amp; Paraf</h1>
         <p>
-          Unggah gambar tanda tangan atau paraf (PNG/JPG; PNG dengan latar transparan paling baik).
+          Unggah gambar tanda tangan, paraf, atau stempel (PNG, JPG, atau JPEG). Setelah memilih berkas, Anda dapat menghapus latar putih/polos secara otomatis dan memeriksa hasilnya sebelum dipakai.
           Gambar hanya muncul pada PDF gabungan dan pratinjaunya. Aplikasi tidak membuat tanda tangan
           otomatis. Pengaturan tersimpan di browser ini.
         </p>
@@ -262,7 +292,19 @@ export default function Signatures() {
                   </label>
 
                   {slot.dataUrl && (
-                    <button type="button" className="btn btn-ghost-danger btn-sm" onClick={() => handleRemove(def)}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      data-testid={`bg-${def.key}`}
+                      onClick={() =>
+                        setBgTarget({ kind: "slot", key: def.key, title: def.label, source: { dataUrl: slot.dataUrl, fileName: slot.fileName } })
+                      }
+                    >
+                      <Eraser size={16} /> Hapus latar
+                    </button>
+                  )}
+                  {slot.dataUrl && (
+                    <button type="button" className="btn btn-ghost-danger btn-sm" data-testid={`remove-${def.key}`} onClick={() => handleRemove(def)}>
                       <Trash2 size={16} /> Hapus
                     </button>
                   )}
@@ -270,21 +312,43 @@ export default function Signatures() {
                 </>
                 )}
 
-                <label className="sig-toggle">
-                  <input
-                    type="checkbox"
-                    checked={slot.enabled}
-                    data-testid={`enabled-${def.key}`}
-                    onChange={(event) => patchSlot(def.key, { enabled: event.target.checked })}
-                  />
-                  Tampilkan di dokumen
-                </label>
+                {def.stamp ? (
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      data-testid="toggle-stamp"
+                      aria-pressed={slot.enabled}
+                      onClick={() => patchSlot(def.key, { enabled: !slot.enabled })}
+                    >
+                      {slot.enabled ? <EyeOff size={16} /> : <Eye size={16} />} {slot.enabled ? "Sembunyikan stempel" : "Tampilkan stempel"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      data-testid="reset-stamp"
+                      onClick={() => patchSlot(def.key, { ...def.defaults, sizeManual: false, enabled: slot.enabled })}
+                    >
+                      <RotateCcw size={16} /> Reset posisi
+                    </button>
+                  </div>
+                ) : (
+                  <label className="sig-toggle">
+                    <input
+                      type="checkbox"
+                      checked={slot.enabled}
+                      data-testid={`enabled-${def.key}`}
+                      onChange={(event) => patchSlot(def.key, { enabled: event.target.checked })}
+                    />
+                    Tampilkan di dokumen
+                  </label>
+                )}
 
                 <div className="sig-fields">
                   {[
-                    ["widthMm", "Lebar (mm)", 3, 120],
-                    ["offsetXMm", "Geser X (mm)", -60, 60],
-                    ["offsetYMm", "Geser Y (mm)", -60, 60],
+                    ["widthMm", "Lebar (mm)", 2, 400],
+                    ["offsetXMm", "Geser X (mm)", -300, 300],
+                    ["offsetYMm", "Geser Y (mm)", -300, 300],
                   ].map(([field, label, min, max]) => (
                     <label key={field}>
                       {label}
@@ -298,12 +362,55 @@ export default function Signatures() {
                         data-testid={`${field}-${def.key}`}
                         onChange={(event) => {
                           const value = Number(event.target.value);
-                          patchSlot(def.key, { [field]: Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : 0 });
+                          patchSlot(def.key, { [field]: Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : field === "widthMm" ? def.defaults.widthMm : 0 });
                         }}
                       />
                     </label>
                   ))}
                 </div>
+
+                <div className="sig-size-mode">
+                  <span data-testid={`size-mode-${def.key}`}>{slot.sizeManual ? "Ukuran: manual (dipakai persis)" : "Ukuran: otomatis"}</span>
+                  {slot.sizeManual && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      data-testid={`auto-size-${def.key}`}
+                      onClick={() => patchSlot(def.key, { widthMm: def.defaults.widthMm, sizeManual: false })}
+                    >
+                      <RotateCcw size={14} /> Ukuran otomatis
+                    </button>
+                  )}
+                </div>
+
+                {def.stamp && (
+                  <div className="sig-stamp-fields">
+                    <label>
+                      Transparansi stempel: {Math.round(slot.opacity * 100)}% terlihat
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={Math.round(slot.opacity * 100)}
+                        data-testid="opacity-stamp"
+                        onChange={(event) => patchSlot(def.key, { opacity: Number(event.target.value) / 100 })}
+                      />
+                    </label>
+                    <label>
+                      Posisi awal
+                      <select
+                        className="input"
+                        value={slot.side}
+                        data-testid="side-stamp"
+                        onChange={(event) => patchSlot(def.key, { side: event.target.value, offsetXMm: 0, offsetYMm: 0 })}
+                      >
+                        <option value="left">Di kiri tanda tangan</option>
+                        <option value="right">Di kanan tanda tangan</option>
+                      </select>
+                    </label>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -368,6 +475,18 @@ export default function Signatures() {
                     />
                   </label>
                   {sig?.dataUrl && (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      data-testid={`emp-bg-${employee.id}`}
+                      onClick={() =>
+                        setBgTarget({ kind: "employee", employee, title: `tanda tangan ${employee.name}`, source: { dataUrl: sig.dataUrl, fileName: sig.fileName } })
+                      }
+                    >
+                      <Eraser size={16} /> Hapus latar
+                    </button>
+                  )}
+                  {sig?.dataUrl && (
                     <button type="button" className="btn btn-ghost-danger btn-sm" onClick={() => handleEmployeeRemove(employee)}>
                       <Trash2 size={16} /> Hapus
                     </button>
@@ -388,6 +507,18 @@ export default function Signatures() {
         </div>
         <PlacementEditor settings={settings} onPatchSlot={patchSlot} sampleEmployee={sampleEmployee} />
       </section>
+
+      {bgTarget && (
+        <BackgroundRemovalDialog
+          key={`${bgTarget.source.fileName}-${bgTarget.source.dataUrl.length}`}
+          source={bgTarget.source}
+          title={bgTarget.title}
+          onAccept={(image) => applyBgResult(image, { removed: true })}
+          onUseOriginal={(image) => applyBgResult(image, { removed: false })}
+          onReupload={(source) => setBgTarget((current) => ({ ...current, source }))}
+          onCancel={() => setBgTarget(null)}
+        />
+      )}
 
       {preview && (
         <CombinedPreview

@@ -9,6 +9,7 @@ export const SIGNATURE_SETTINGS_ID = "signatures";
 //  employee : di atas nama karyawan pada formulir Excel (nama terakhir di halaman formulir)
 //  manager  : di atas nama manajer (mis. SAMSU ALAM) pada bagian MANAGER ULTG PAREPARE di surat
 //  paraf1-3 : slot paraf Team Leader/Supervisor pada bagian paraf surat (kata "Paraf" di kaki surat)
+//  stamp    : stempel kantor di samping tanda tangan manajer (sebagian menimpa tanda tangan)
 export const SIGNATURE_SLOTS = [
   {
     key: "employee",
@@ -41,13 +42,20 @@ export const SIGNATURE_SLOTS = [
     hint: "Slot paraf ketiga, di sebelah kanan paraf 2.",
     defaults: { widthMm: 8, offsetXMm: 0, offsetYMm: 0 },
   },
+  {
+    key: "stamp",
+    label: "Stempel kantor",
+    hint: "Muncul di samping tanda tangan manajer, sebagian boleh menimpa tanda tangan. Posisi awal mengikuti tanda tangan manajer; atur dengan editor posisi.",
+    stamp: true,
+    defaults: { widthMm: 30, offsetXMm: 0, offsetYMm: 0, opacity: 0.85, side: "left" },
+  },
 ];
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_SIDE = 900; // piksel; cukup tajam untuk tanda tangan, menjaga ukuran PDF kecil
 
 function emptySlot(def) {
-  return { key: def.key, enabled: true, dataUrl: "", fileName: "", ratio: 1, ...def.defaults };
+  return { key: def.key, enabled: true, dataUrl: "", fileName: "", ratio: 1, opacity: 1, sizeManual: false, ...def.defaults };
 }
 
 export function defaultSignatureSettings() {
@@ -66,6 +74,20 @@ export function normalizeSignatureSettings(stored) {
   for (const def of SIGNATURE_SLOTS) {
     const saved = stored?.slots?.[def.key];
     if (saved && typeof saved === "object") base.slots[def.key] = { ...base.slots[def.key], ...saved, key: def.key };
+
+    // Ukuran "manual" = ukuran yang diatur sendiri pengguna (dipakai persis, tanpa pembatasan otomatis).
+    // Data lama tanpa penanda dianggap manual bila lebarnya sudah berbeda dari ukuran awal.
+    const slotValue = base.slots[def.key];
+    slotValue.sizeManual =
+      saved && saved.sizeManual === undefined
+        ? Number(saved.widthMm) > 0 && Number(saved.widthMm) !== def.defaults.widthMm
+        : Boolean(slotValue.sizeManual);
+
+    const slot = base.slots[def.key];
+    const opacity = Number(slot.opacity);
+
+    slot.opacity = Number.isFinite(opacity) ? Math.min(1, Math.max(0.1, opacity)) : 1;
+    if (def.stamp) slot.side = slot.side === "right" ? "right" : "left";
   }
 
   return base;
@@ -95,8 +117,11 @@ export function activeSlots(settings) {
 export async function readSignatureFile(file) {
   if (!file) throw new Error("Tidak ada file yang dipilih.");
 
-  if (!/^image\/(png|jpe?g)$/i.test(file.type)) {
-    throw new Error("Format gambar harus PNG atau JPG.");
+  // Format yang diterima: PNG, JPG, JPEG. Sebagian browser/OS mengosongkan file.type, jadi ekstensi ikut diperiksa.
+  const typeOk = /^image\/(png|jpe?g)$/i.test(file.type) || (!file.type && /\.(png|jpe?g)$/i.test(file.name || ""));
+
+  if (!typeOk) {
+    throw new Error("Format gambar harus PNG, JPG, atau JPEG.");
   }
 
   if (file.size > MAX_IMAGE_BYTES) {
@@ -119,7 +144,7 @@ export async function readSignatureFile(file) {
   canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
 
-  const isJpeg = /jpe?g/i.test(file.type);
+  const isJpeg = /jpe?g/i.test(file.type) || (!file.type && /\.jpe?g$/i.test(file.name || ""));
   const dataUrl = isJpeg ? canvas.toDataURL("image/jpeg", 0.92) : canvas.toDataURL("image/png");
 
   return { dataUrl, ratio: height / width, fileName: file.name };

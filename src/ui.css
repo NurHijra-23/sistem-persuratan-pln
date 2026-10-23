@@ -1786,3 +1786,180 @@ textarea.input {
 .trip-sign-row select {
   max-width: 320px;
 }
+
+/* ===== Stempel & penghapusan latar ===== */
+.sig-stamp-fields {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sig-stamp-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.pe-stamp-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  border-radius: var(--radius-sm);
+}
+
+.pe-stamp-opacity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.bg-dialog {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.bg-body {
+  padding: 14px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.bg-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.bg-compare figure {
+  margin: 0;
+}
+
+.bg-compare figcaption {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bg-stage {
+  min-height: 160px;
+  max-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.bg-stage canvas {
+  max-width: 100%;
+  max-height: 280px;
+  width: auto;
+  height: auto;
+}
+
+.bg-stage-white {
+  background: #fff;
+}
+
+.bg-stage-dark {
+  background: #1f2937;
+}
+
+.bg-stage-pink {
+  background: #f9a8d4;
+}
+
+.bg-stage-checker {
+  background-color: #fff;
+  background-image: linear-gradient(45deg, #dbe3ee 25%, transparent 25%, transparent 75%, #dbe3ee 75%),
+    linear-gradient(45deg, #dbe3ee 25%, transparent 25%, transparent 75%, #dbe3ee 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+}
+
+.bg-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.bg-controls label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.bg-controls .hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bg-checks {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.bg-stats {
+  margin: 0;
+  font-size: 13px;
+}
+
+.bg-warnings {
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.bg-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 18px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .bg-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bg-controls .sig-toggle,
+.bg-checks .sig-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sig-size-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}

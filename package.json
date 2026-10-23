@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:dokumen": "node scripts/uji-dokumen.mjs"
+    "test:dokumen": "node scripts/uji-dokumen.mjs",
+    "test:latar": "node scripts/uji-latar.mjs"
   },
   "dependencies": {
     "docx-preview": "^0.3.7",

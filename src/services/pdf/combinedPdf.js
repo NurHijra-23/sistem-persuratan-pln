@@ -30,8 +30,14 @@ async function embedDataUrl(pdf, dataUrl, cache) {
   return image;
 }
 
-function drawRect(page, pageHeightPt, image, rect) {
-  page.drawImage(image, { x: rect.left, y: pageHeightPt - rect.top - rect.height, width: rect.width, height: rect.height });
+function drawRect(page, pageHeightPt, image, rect, opacity = 1) {
+  page.drawImage(image, {
+    x: rect.left,
+    y: pageHeightPt - rect.top - rect.height,
+    width: rect.width,
+    height: rect.height,
+    ...(opacity < 1 ? { opacity } : {}),
+  });
 }
 
 // items          : payload surat per perjalanan (hasil buildSppdPayload)
@@ -108,20 +114,25 @@ export async function buildCombinedPdf({ items, trips, signatures, employeeImage
         layout.paraf = parafText;
         layout.manager = toPt(info.locate(managerName));
         layout.managerTitle = toPt(info.locate("MANAGER ULTG PAREPARE"));
+        layout.page = { widthPt, heightPt };
+        layout.margins = { left: decor.pageMarginLeftPt, right: decor.pageMarginRightPt };
 
-        for (const key of ["manager", "paraf1", "paraf2", "paraf3"]) {
+        // Stempel digambar terakhir (di atas tanda tangan manajer) dengan opasitas yang diatur pengguna.
+        for (const key of ["manager", "paraf1", "paraf2", "paraf3", "stamp"]) {
           const slot = slotOn(key);
           if (!slot) continue;
 
-          const rect = slotRect(key, slot, layout, { avoidText });
+          const rect = slotRect(key, slot, layout, { avoidText, slots: settings.slots });
 
           if (rect) {
-            drawRect(page, heightPt, await embedDataUrl(pdf, slot.dataUrl, imageCache), rect);
+            drawRect(page, heightPt, await embedDataUrl(pdf, slot.dataUrl, imageCache), rect, slot.opacity);
           } else {
             warnings.push(
               key === "manager"
                 ? `Nama manajer tidak ditemukan pada ${label}; tanda tangan manajer tidak ditempatkan.`
-                : `Bagian "Paraf" tidak ditemukan pada ${label}; paraf tidak ditempatkan.`
+                : key === "stamp"
+                  ? `Nama manajer tidak ditemukan pada ${label}; stempel tidak ditempatkan.`
+                  : `Bagian "Paraf" tidak ditemukan pada ${label}; paraf tidak ditempatkan.`
             );
           }
         }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, Minus, Plus, RefreshCw, RotateCcw } from "lucide-react";
 
 import { buildCombinedPdf } from "../services/pdf/combinedPdf";
 import { MM_TO_PT, SLOT_PAGE, slotRect } from "../services/pdf/placement";
@@ -43,6 +43,9 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee }) {
   const [state, setState] = useState({ loading: true, error: "", pages: [] });
   const dragRef = useRef(null);
+  // Slot yang terakhir disentuh dinaikkan ke lapisan teratas agar handle ukurannya selalu bisa diraih,
+  // walaupun tertutup slot lain (mis. paraf besar di bawah paraf kecil).
+  const [raised, setRaised] = useState("");
 
   const load = useCallback(async () => {
     setState({ loading: true, error: "", pages: [] });
@@ -86,6 +89,7 @@ export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee 
     event.currentTarget.setPointerCapture?.(event.pointerId);
 
     const slot = settings.slots[key];
+    setRaised(key);
     dragRef.current = { key, mode, scale, x: event.clientX, y: event.clientY, slot, rect };
   }
 
@@ -98,13 +102,13 @@ export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee 
 
     if (drag.mode === "move") {
       onPatchSlot(drag.key, {
-        offsetXMm: round1(clamp((Number(drag.slot.offsetXMm) || 0) + mmX, -60, 60)),
-        offsetYMm: round1(clamp((Number(drag.slot.offsetYMm) || 0) + mmY, -60, 60)),
+        offsetXMm: round1(clamp((Number(drag.slot.offsetXMm) || 0) + mmX, -300, 300)),
+        offsetYMm: round1(clamp((Number(drag.slot.offsetYMm) || 0) + mmY, -300, 300)),
       });
     } else {
       // Lebar dihitung dari lebar yang tampil saat ini (bisa lebih kecil dari pengaturan bila dibatasi otomatis).
       const startWidthMm = drag.rect.width / MM_TO_PT;
-      onPatchSlot(drag.key, { widthMm: round1(clamp(startWidthMm + mmX, 3, 120)) });
+      onPatchSlot(drag.key, { widthMm: round1(clamp(startWidthMm + mmX, 2, 400)) });
     }
   }
 
@@ -121,8 +125,8 @@ export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee 
     event.preventDefault();
     const slot = settings.slots[key];
     onPatchSlot(key, {
-      offsetXMm: round1(clamp((Number(slot.offsetXMm) || 0) + move[0], -60, 60)),
-      offsetYMm: round1(clamp((Number(slot.offsetYMm) || 0) + move[1], -60, 60)),
+      offsetXMm: round1(clamp((Number(slot.offsetXMm) || 0) + move[0], -300, 300)),
+      offsetYMm: round1(clamp((Number(slot.offsetYMm) || 0) + move[1], -300, 300)),
     });
   }
 
@@ -138,6 +142,49 @@ export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee 
           {state.loading ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />} Muat ulang halaman contoh
         </button>
       </div>
+
+      {settings.slots.stamp && (
+        <div className="pe-stamp-bar" data-testid="pe-stamp-bar">
+          <strong>Stempel</strong>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            data-testid="pe-stamp-smaller"
+            aria-label="Perkecil stempel"
+            onClick={() => onPatchSlot("stamp", { widthMm: round1(clamp((Number(settings.slots.stamp.widthMm) || 30) - 2, 2, 400)) })}
+          >
+            <Minus size={16} /> Perkecil
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            data-testid="pe-stamp-bigger"
+            aria-label="Perbesar stempel"
+            onClick={() => onPatchSlot("stamp", { widthMm: round1(clamp((Number(settings.slots.stamp.widthMm) || 30) + 2, 2, 400)) })}
+          >
+            <Plus size={16} /> Perbesar
+          </button>
+          <label className="pe-stamp-opacity">
+            Transparansi: {Math.round(settings.slots.stamp.opacity * 100)}%
+            <input
+              type="range"
+              min="10"
+              max="100"
+              step="5"
+              value={Math.round(settings.slots.stamp.opacity * 100)}
+              data-testid="pe-stamp-opacity"
+              onChange={(event) => onPatchSlot("stamp", { opacity: Number(event.target.value) / 100 })}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => onPatchSlot("stamp", { offsetXMm: 0, offsetYMm: 0 })}
+          >
+            <RotateCcw size={16} /> Posisi awal
+          </button>
+        </div>
+      )}
 
       {state.loading && (
         <p className="docx-preview-status">
@@ -165,7 +212,7 @@ export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee 
 
                   const image = def.key === "employee" ? sampleEmployee?.dataUrl : slot.dataUrl;
                   const ratio = def.key === "employee" ? sampleEmployee?.ratio || 0.4 : slot.dataUrl ? slot.ratio : 0.4;
-                  const rect = slotRect(def.key, slot, page.layout, { avoidText: settings.avoidText, ratio });
+                  const rect = slotRect(def.key, slot, page.layout, { avoidText: settings.avoidText, ratio, slots: settings.slots });
 
                   if (!rect) return null;
 
@@ -173,19 +220,24 @@ export default function PlacementEditor({ settings, onPatchSlot, sampleEmployee 
                     <div
                       key={def.key}
                       className={`pe-slot${image ? "" : " pe-empty"}${rect.capped ? " pe-capped" : ""}`}
-                      style={{ left: rect.left * scale, top: rect.top * scale, width: rect.width * scale, height: rect.height * scale }}
+                      style={{ left: rect.left * scale, top: rect.top * scale, width: rect.width * scale, height: rect.height * scale, zIndex: raised === def.key ? 20 : def.stamp ? 3 : 2 }}
                       tabIndex={0}
                       role="button"
                       aria-label={`Atur posisi ${def.label}`}
                       data-testid={`pe-slot-${def.key}`}
-                      title={rect.capped ? `${def.label} (ukuran dibatasi otomatis agar tidak menutupi teks)` : def.label}
+                      title={rect.capped ? `${def.label} (posisi/ukuran disesuaikan otomatis agar tidak menutupi teks atau keluar area)` : def.label}
                       onPointerDown={(event) => startDrag(event, def.key, "move", rect, scale)}
+                      onFocus={() => setRaised(def.key)}
                       onPointerMove={moveDrag}
                       onPointerUp={endDrag}
                       onPointerCancel={endDrag}
                       onKeyDown={(event) => nudge(event, def.key)}
                     >
-                      {image ? <img src={image} alt="" draggable={false} /> : <span>{def.key === "employee" ? "TTD karyawan" : def.key === "manager" ? "TTD manajer" : `Paraf ${def.key.slice(-1)}`}</span>}
+                      {image ? (
+                        <img src={image} alt="" draggable={false} style={def.stamp ? { opacity: slot.opacity } : undefined} />
+                      ) : (
+                        <span>{def.key === "employee" ? "TTD karyawan" : def.key === "manager" ? "TTD manajer" : def.stamp ? "Stempel" : `Paraf ${def.key.slice(-1)}`}</span>
+                      )}
                       <i
                         className="pe-handle"
                         data-testid={`pe-handle-${def.key}`}

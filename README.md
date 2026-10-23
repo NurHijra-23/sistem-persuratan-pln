@@ -34,3 +34,40 @@ Keterbatasan:
 - Template: `public/templates/` (`sppd-template-otomatis.docx`, `sppd-template.docx`, `Form Perhitungan SPPD TAD Har3.xlsx`).
 - Word/Excel: `src/services/sppd/`. PDF: `src/services/pdf/` (`rasterPages.js`, `letterDecor.js`, `combinedPdf.js`). Tanda tangan: `src/services/signatures.js`. Pratinjau PDF: `src/components/CombinedPreview.jsx` (pdf.js).
 - Data hilang bila data situs browser dihapus: unduh cadangan secara berkala.
+
+## Stempel kantor dan penghapusan latar (v4)
+
+**Stempel** (menu *Tanda Tangan*, kartu "Stempel kantor"): unggah PNG/JPG/JPEG. Stempel muncul di samping tanda
+tangan manajer (default di kiri, bisa di kanan) dan sebagian menimpa ujung tanda tangan. Posisi, ukuran, dan
+transparansi diatur di kartu (angka/slider) atau di editor posisi (seret, tarik handle, tombol Perbesar/Perkecil,
+slider Transparansi). Tombol: Ganti gambar, Hapus, Sembunyikan/Tampilkan, Reset posisi. Dengan opsi
+"Jaga agar tidak menutupi teks" aktif, stempel otomatis dijaga agar tidak menimpa judul "MANAGER ULTG PAREPARE"
+dan nama manajer, tetap di dalam margin surat, dan di atas kaki surat. Gambar + pengaturan tersimpan di IndexedDB
+(store `settings`, ikut ekspor/impor cadangan).
+
+**Hapus latar** (tanda tangan manajer, paraf, stempel, tanda tangan karyawan): setelah memilih gambar muncul dialog
+berisi gambar asli dan hasil berdampingan (latar uji kotak-kotak/putih/gelap/merah muda), pilihan metode
+(Otomatis, Latar polos/putih, Latar berwarna/tidak rata dari tepi, Jangan hapus), slider toleransi, pangkas tepi
+kosong, statistik, dan peringatan. Pilihan: *Pakai hasil ini*, *Pakai gambar asli*, *Unggah ulang*, *Batal*.
+Tombol *Hapus latar* juga tersedia untuk gambar yang sudah tersimpan.
+
+Keterbatasan (diuji pada gambar sintetis dan fixture, bukan semua gambar nyata):
+- Latar polos/putih (termasuk JPG berderau) ditangani dengan baik, garis tipis ~1 px dan warna tinta terjaga.
+- Latar berwarna/bergradasi dihapus dari tepi; area tertutup (mis. bagian dalam lingkaran stempel) dipertahankan
+  kecuali opsi "Hapus juga area tertutup" dinyalakan.
+- Latar bertekstur kuat, foto, atau tinta yang warnanya mirip latar tidak dapat dijamin bersih. Periksa hasil di
+  dialog; bila kurang baik pakai gambar asli atau ubah toleransi/metode.
+- Toleransi tinggi dapat menghapus garis pensil yang sangat pucat.
+
+Uji: `npm run test:dokumen` (dokumen) dan `npm run test:latar` (algoritma penghapusan latar).
+
+## Ukuran tanda tangan, paraf, dan stempel: otomatis lalu manual (v5)
+
+Awalnya setiap gambar berukuran **otomatis**: paraf dimuat dalam selnya di atas garis paraf, tanda tangan
+dipotong tingginya agar tidak menutupi teks di atasnya, dan stempel diperkecil agar muat di area tanda tangan.
+Begitu Anda mengatur lebar sendiri (kolom Lebar, menarik handle di editor posisi, atau tombol Perbesar/Perkecil
+stempel), ukuran berubah menjadi **manual**: dipakai persis seperti yang Anda atur, tanpa pembatasan otomatis
+(lebar 2-400 mm, geser ??300 mm). Tombol **Ukuran otomatis** pada tiap kartu mengembalikan ke ukuran awal.
+Slot yang terakhir disentuh di editor naik ke lapisan atas sehingga handle-nya tetap bisa diraih saat tertutup slot lain.
+Catatan: untuk stempel, opsi "Jaga agar tidak menutupi teks" tetap menggeser posisi menjauhi teks bila dinyalakan
+(ukuran tidak diubah); matikan opsi itu untuk kebebasan penuh.
